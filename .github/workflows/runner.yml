@@ -47,3 +47,53 @@ jobs:
       - name: Run Tinglysning Go script
         run: |
           go run Tinglysning-GitHub.go
+
+      - name: Dump the entire database
+        run: |
+          mongodump \
+            --host localhost --port 27017 \
+            --db bilgaden \
+            --collection=tinglysning \
+            --gzip --out dump
+          find ${{ github.workspace }}/dump/bilgaden -type f ! -name 'tinglysning.bson.gz' -delete
+          ls -lh ${{ github.workspace }}/dump/bilgaden
+          df -h
+    
+      # - name: Archive BSON-file
+      #   run: |
+      #     mkdir -p ${{ github.workspace }}/tinglysning-zip
+      #     zip -j -r -s ${{ inputs.discord-upload-limit }}m ${{ github.workspace }}/tinglysning-zip/tinglysning.bson.gz.zip ${{ github.workspace }}/dump/bilgaden
+
+      # - name: Split BSON-file
+      #   run: |
+      #     mkdir -p ${{ github.workspace }}/tinglysning-split
+      #     split -d -b ${{ inputs.discord-upload-limit }}m ${{ github.workspace }}/dump/bilgaden/tinglysning.bson.gz ${{ github.workspace }}/tinglysning-split/tinglysning.bson.gz.part
+
+      # - name: Install Python
+      #   uses: actions/setup-python@v5
+      #   with:
+      #     python-version: '3.x'
+
+      # - name: Install Python dependencies
+      #   run: |
+      #     pip install pymongo discord-webhook
+
+      # - name: Upload BSON-file to GitHub Tinglysning-branch
+      #   working-directory: "${{ github.workspace }}/temp/"
+      #   run: |
+      #     mv ${{ github.workspace }}/dump/bilgaden/tinglysning.bson.gz ${{ github.workspace }}/temp/tinglysning.bson.gz
+      #     mv ${{ github.workspace }}/Branch-GitHub.py ${{ github.workspace }}/temp/Branch-GitHub.py
+          
+      #     python ${{ github.workspace }}/temp/Branch-GitHub.py tinglysning
+      #   env:
+      #     FILENAME: "tinglysning.bson.gz"
+      #     FILENAME_NO_SUFFIX: "tinglysning"
+      #     FILEPATH: "${{ github.workspace }}/temp/"
+      #     BRANCHNAME: "tinglysning.zip"
+      #     GITHUB_UPLOAD_LIMIT: "${{ inputs.github-upload-limit }}"
+
+      # - name: Upload BSON-file to Discord
+      #   run: |
+      #     python ${{ github.workspace }}/UploadToDiscord-GitHub.py tinglysning
+      #   env:
+      #     FILENAME: "tinglysning.bson.gz"
