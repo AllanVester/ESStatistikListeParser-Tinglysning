@@ -2,12 +2,40 @@ name: Tinglysning
 
 on:
   workflow_dispatch:
+    inputs:
+      should-spawn-new-runner:
+        description: 'Should spawn a new runner'
+        required: true
+        type: string
+        default: "false"
+      remove-count-from-vins:
+        description: 'Remove count from vins'
+        required: true
+        type: number
+        default: 0
 
 jobs:
   tinglysning:
     runs-on: ubuntu-latest
 
     steps:
+      - name: Display runner information
+        run: |
+          echo "cpu-core:       $(nproc --all)"
+          echo "cpu-model:      $(grep 'model name' /proc/cpuinfo | head -1 | cut -d: -f2- | sed 's/^[[:space:]]*//')"
+          echo "hostname:       $(hostname)"
+          echo "kernel-release: $(uname -r)"
+          echo "kernel-version: $(uname -v)"
+          echo "name:           $(grep '^NAME=' /etc/os-release | head -1 | cut -d= -f2- | tr -d '\"')"
+          echo "platform:       $(uname -s)"
+          echo "release:        $(grep '^VERSION_ID=' /etc/os-release | head -1 | cut -d= -f2- | tr -d '\"')"
+          echo "total-memory:   $(grep MemTotal /proc/meminfo | awk '{print $2 * 1024}')"
+
+      - name: Set environment variables
+        run: |
+          echo "SHOULD_SPAWN_NEW_RUNNER=${{ inputs.should-spawn-new-runner }}" >> $GITHUB_ENV
+          echo "REMOVE_COUNT_FROM_VINS=${{ inputs.remove-count-from-vins }}" >> $GITHUB_ENV
+
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
@@ -47,6 +75,8 @@ jobs:
       - name: Run Tinglysning Go script
         run: |
           go run Tinglysning-GitHub.go
+        env:
+          REMOVE_COUNT_FROM_VINS: ${{ env.REMOVE_COUNT_FROM_VINS }}
 
       - name: Dump the entire database
         run: |
@@ -58,6 +88,23 @@ jobs:
           find ${{ github.workspace }}/dump/bilgaden -type f ! -name 'tinglysning.bson.gz' -delete
           ls -lh ${{ github.workspace }}/dump/bilgaden
           df -h
+
+      - name: Trigger next Runner
+        if: ${{ env.SHOULD_SPAWN_NEW_RUNNER == 'true' }}
+        uses: actions/github-script@v7
+        with:
+          script: |
+            await github.rest.actions.createWorkflowDispatch({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              workflow_id: 'runner.yml',
+              ref: 'main',
+              inputs: {
+                'should-spawn-new-runner': 'false',
+                'remove-count-from-vins': '${{ env.REMOVE_COUNT_FROM_VINS }}'
+              }
+            })
+          github-token: ${{ secrets.PAT }}
     
       # - name: Archive BSON-file
       #   run: |
