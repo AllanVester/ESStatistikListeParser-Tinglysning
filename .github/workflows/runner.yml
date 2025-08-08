@@ -11,8 +11,8 @@ on:
       remove-count-from-vins:
         description: 'Remove count from vins'
         required: true
-        type: number
-        default: 0
+        type: string
+        default: "0"
 
 jobs:
   tinglysning:
