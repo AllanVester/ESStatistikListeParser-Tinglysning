@@ -36,6 +36,9 @@ jobs:
           echo "SHOULD_SPAWN_NEW_RUNNER=${{ inputs.should-spawn-new-runner }}" >> $GITHUB_ENV
           echo "REMOVE_COUNT_FROM_VINS=${{ inputs.remove-count-from-vins }}" >> $GITHUB_ENV
 
+          echo "EXIST_TINGLYSNING_BRANCH=false" >> $GITHUB_ENV
+          echo "EXIST_TINGLYSNING_TEMP_BRANCH=false" >> $GITHUB_ENV
+
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
@@ -49,17 +52,99 @@ jobs:
           sparse-checkout-cone-mode: false
           token: "${{ secrets.PAT }}"
 
+      - name: Checkout Bilgaden repository
+        uses: actions/checkout@v4
+        with:
+          repository: "${{ github.repository_owner }}/Bilgaden"
+          ref: "main"
+          path: "${{ github.workspace }}/temp/"
+          sparse-checkout: |
+            !/*
+          sparse-checkout-cone-mode: false
+          token: "${{ secrets.PAT }}"
+
+      - name: Set up Git
+        working-directory: "${{ github.workspace }}/temp/"
+        run: |
+          gh auth login --with-token <<< "${{ secrets.PAT }}"
+
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git config --global http.postBuffer 104857600
+          
+          if git ls-remote --exit-code --heads origin tinglysning; then
+              echo "EXIST_TINGLYSNING_BRANCH=true" >> $GITHUB_ENV
+          else 
+              echo "Branch 'tinglysning' does not exist, creating..."
+              
+              git switch --orphan tinglysning
+              git commit --allow-empty -m "Created Tinglysning branch"
+              git push origin tinglysning
+          fi
+
+          if git ls-remote --exit-code --heads origin tinglysning-temp; then
+              echo "EXIST_TINGLYSNING_TEMP_BRANCH=true" >> $GITHUB_ENV
+          else
+              echo "Branch 'tinglysning-temp' does not exist, creating..."
+              
+              git switch --orphan tinglysning-temp
+              git commit --allow-empty -m "Created Tinglysning-Temp branch"
+              git push origin tinglysning-temp
+          fi
+
+          rm -rf ${{ github.workspace }}/temp/
+
+      - name: Checkout Bilgaden repository (Tinglysning-branch)
+        if: ${{ (env.EXIST_TINGLYSNING_BRANCH == 'false' && env.EXIST_TINGLYSNING_TEMP_BRANCH == 'false') || (env.EXIST_TINGLYSNING_BRANCH == 'true' && env.EXIST_TINGLYSNING_TEMP_BRANCH == 'false') }}
+        uses: actions/checkout@v4
+        with:
+          repository: "${{ github.repository_owner }}/Bilgaden"
+          ref: "tinglysning"
+          path: "${{ github.workspace }}/temp/"
+          token: "${{ secrets.PAT }}"
+
+      - name: Checkout Bilgaden repository (Tinglysning-temp-branch)
+        if: ${{ env.EXIST_TINGLYSNING_TEMP_BRANCH == 'true' && env.EXIST_TINGLYSNING_BRANCH == 'true' }}
+        uses: actions/checkout@v4
+        with:
+          repository: "${{ github.repository_owner }}/Bilgaden"
+          ref: "tinglysning-temp"
+          path: "${{ github.workspace }}/temp/"
+          token: "${{ secrets.PAT }}"
+
+      - name: Stitch BSON back together
+        if: ${{ env.EXIST_TINGLYSNING_BRANCH == 'false' && env.EXIST_TINGLYSNING_TEMP_BRANCH == 'false' }}
+        working-directory: "${{ github.workspace }}/temp/"
+        run: |
+          cat ${{ github.workspace }}/temp/*.part* > "${{ github.workspace }}/tinglysning.bson.gz"
+          file "${{ github.workspace }}/tinglysning.bson.gz"
+          
+          rm -rf ${{ github.workspace }}/temp/
+
       - name: Install MongoDB
         uses: ankane/setup-mongodb@v1
         with:
           mongodb-version: 8.0
 
       - name: Create MongoDB database
+        if: ${{ env.EXIST_TINGLYSNING_BRANCH == 'false' && env.EXIST_TINGLYSNING_TEMP_BRANCH == 'false' }}
         run: |
           mongosh --host localhost:27017 <<EOF
             db = db.getSiblingDB('bilgaden');
             db.createCollection('tinglysning');
           EOF
+
+      - name: Import BSON into MongoDB
+        if: ${{ env.EXIST_TINGLYSNING_BRANCH == 'true' || env.EXIST_TINGLYSNING_TEMP_BRANCH == 'true' }}
+        run: |
+          mongorestore \
+            --host localhost --port 27017 \
+            --db bilgaden \
+            --collection tinglysning \
+            --gzip \
+            --archive="${{ github.workspace }}/tinglysning.bson.gz"
+          
+          rm -rf ${{ github.workspace }}/tinglysning.bson.gz
 
       - name: Install Go
         uses: actions/setup-go@v5
@@ -86,8 +171,37 @@ jobs:
             --collection=tinglysning \
             --gzip --out dump
           find ${{ github.workspace }}/dump/bilgaden -type f ! -name 'tinglysning.bson.gz' -delete
-          ls -lh ${{ github.workspace }}/dump/bilgaden
-          df -h
+
+      - name: Split BSON-file into temp-directory
+        if: ${{ env.SHOULD_SPAWN_NEW_RUNNER == 'false' }}
+        run: |
+          split -d -b ${{ inputs.github-upload-limit }}m ${{ github.workspace }}/dump/bilgaden/tinglysning.sql.gz ${{ github.workspace }}/temp/tinglysning.sql.gz.part
+
+      - name: Checkout Bilgaden repository (Tinglysning-temp-branch)
+        uses: actions/checkout@v4
+        with:
+          repository: "${{ github.repository_owner }}/Bilgaden"
+          ref: "tinglysning-temp"
+          path: "${{ github.workspace }}/temp/"
+          sparse-checkout: |
+            !/*
+          sparse-checkout-cone-mode: false
+          token: "${{ secrets.PAT }}"
+
+      - name: Upload BSON-file to GitHub Tinglysning-temp-branch
+        working-directory: "${{ github.workspace }}/temp/"
+        run: |
+          git add --sparse .
+          git commit -m "Uploaded tinglysning"
+          git push
+
+      - name: Delete Tinglysning branch and rename Tinglysning-temp branch to Tinglysning 
+        run: |
+          git branch -m tinglysning-temp tinglysning
+
+          git push -u origin tinglysning --force
+
+          git push origin --delete tinglysning-temp
 
       - name: Trigger next Runner
         if: ${{ env.SHOULD_SPAWN_NEW_RUNNER == 'true' }}
