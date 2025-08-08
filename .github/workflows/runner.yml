@@ -113,7 +113,7 @@ jobs:
           token: "${{ secrets.PAT }}"
 
       - name: Stitch BSON back together
-        if: ${{ env.EXIST_TINGLYSNING_BRANCH == 'false' && env.EXIST_TINGLYSNING_TEMP_BRANCH == 'false' }}
+        if: ${{ env.EXIST_TINGLYSNING_BRANCH == 'true' || env.EXIST_TINGLYSNING_TEMP_BRANCH == 'true' }}
         working-directory: "${{ github.workspace }}/temp/"
         run: |
           cat ${{ github.workspace }}/temp/*.part* > "${{ github.workspace }}/tinglysning.bson.gz"
