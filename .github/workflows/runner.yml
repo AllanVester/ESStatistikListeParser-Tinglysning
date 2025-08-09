@@ -121,6 +121,17 @@ jobs:
           
           rm -rf ${{ github.workspace }}/temp/
 
+      - name: Checkout Bilgaden repository (Tinglysning-temp-branch)
+        uses: actions/checkout@v4
+        with:
+          repository: "${{ github.repository_owner }}/Bilgaden"
+          ref: "tinglysning-temp"
+          path: "${{ github.workspace }}/temp/"
+          sparse-checkout: |
+            !/*
+          sparse-checkout-cone-mode: false
+          token: "${{ secrets.PAT }}"
+
       - name: Install MongoDB
         uses: ankane/setup-mongodb@v1
         with:
@@ -173,21 +184,9 @@ jobs:
           find ${{ github.workspace }}/dump/bilgaden -type f ! -name 'tinglysning.bson.gz' -delete
 
       - name: Split BSON-file into temp-directory
-        if: ${{ env.SHOULD_SPAWN_NEW_RUNNER == 'false' }}
         run: |
           split -d -b ${{ inputs.github-upload-limit }}m ${{ github.workspace }}/dump/bilgaden/tinglysning.sql.gz ${{ github.workspace }}/temp/tinglysning.sql.gz.part
-
-      - name: Checkout Bilgaden repository (Tinglysning-temp-branch)
-        uses: actions/checkout@v4
-        with:
-          repository: "${{ github.repository_owner }}/Bilgaden"
-          ref: "tinglysning-temp"
-          path: "${{ github.workspace }}/temp/"
-          sparse-checkout: |
-            !/*
-          sparse-checkout-cone-mode: false
-          token: "${{ secrets.PAT }}"
-
+          
       - name: Upload BSON-file to GitHub Tinglysning-temp-branch
         working-directory: "${{ github.workspace }}/temp/"
         run: |
