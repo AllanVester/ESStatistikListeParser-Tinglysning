@@ -185,7 +185,7 @@ jobs:
 
       - name: Split BSON-file into temp-directory
         run: |
-          split -d -b ${{ inputs.github-upload-limit }}m ${{ github.workspace }}/dump/bilgaden/tinglysning.sql.gz ${{ github.workspace }}/temp/tinglysning.sql.gz.part
+          split -d -b ${{ inputs.github-upload-limit }}m ${{ github.workspace }}/dump/bilgaden/tinglysning.bson.gz ${{ github.workspace }}/temp/tinglysning.bson.gz.part
           
       - name: Upload BSON-file to GitHub Tinglysning-temp-branch
         working-directory: "${{ github.workspace }}/temp/"
