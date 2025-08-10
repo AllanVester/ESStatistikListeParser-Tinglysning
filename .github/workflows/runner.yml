@@ -194,7 +194,7 @@ jobs:
           git commit -m "Uploaded tinglysning"
           git push
 
-      - name: rename Tinglysning-temp branch to Tinglysning and delete Tinglysning branch  
+      - name: Rename Tinglysning-temp branch to Tinglysning and delete Tinglysning branch  
         run: |
           git fetch origin tinglysning-temp
           git switch -c tinglysning-temp --track origin/tinglysning-temp
