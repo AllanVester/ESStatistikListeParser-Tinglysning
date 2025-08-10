@@ -196,9 +196,7 @@ jobs:
 
       - name: Rename Tinglysning-temp branch to Tinglysning and delete Tinglysning branch  
         run: |
-          git fetch origin tinglysning-temp
-          git switch -c tinglysning-temp --track origin/tinglysning-temp
-          git branch -m tinglysning
+          git fetch origin tinglysning-temp:tinglysning
           git push -u origin tinglysning --force
           git push origin --delete tinglysning-temp
 
