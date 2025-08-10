@@ -200,7 +200,7 @@ jobs:
         run: |
           git fetch origin tinglysning-temp:tinglysning
           git push -u origin tinglysning --force
-          
+
           git push origin --delete tinglysning-temp
 
       - name: Trigger next Runner
@@ -214,7 +214,7 @@ jobs:
               workflow_id: 'runner.yml',
               ref: 'main',
               inputs: {
-                'remove-count-from-vins': '${{ env.REMOVE_COUNT_FROM_VINS }}'
+                'remove-count-from-vins': '${{ env.REMOVE_COUNT_FROM_VINS }}',
                 'github-upload-limit': '${{ inputs.github-upload-limit }}'
               }
             })
