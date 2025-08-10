@@ -152,6 +152,7 @@ jobs:
             --host localhost --port 27017 \
             --db bilgaden \
             --collection tinglysning \
+            --maintainInsertionOrder \
             --gzip \
             "${{ github.workspace }}/tinglysning.bson.gz"
           
