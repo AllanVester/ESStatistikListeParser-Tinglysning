@@ -3,16 +3,16 @@ name: Tinglysning
 on:
   workflow_dispatch:
     inputs:
-      should-spawn-new-runner:
-        description: 'Should spawn a new runner'
-        required: true
-        type: string
-        default: "false"
       remove-count-from-vins:
         description: 'Remove count from vins'
         required: true
         type: string
         default: "0"
+      github-upload-limit:
+        description: 'GitHub Upload Limit (In MiB)'
+        required: true
+        type: string
+        default: "100"
 
 jobs:
   tinglysning:
@@ -33,7 +33,7 @@ jobs:
 
       - name: Set environment variables
         run: |
-          echo "SHOULD_SPAWN_NEW_RUNNER=${{ inputs.should-spawn-new-runner }}" >> $GITHUB_ENV
+          echo "SHOULD_SPAWN_NEW_RUNNER=false" >> $GITHUB_ENV
           echo "REMOVE_COUNT_FROM_VINS=${{ inputs.remove-count-from-vins }}" >> $GITHUB_ENV
 
           echo "EXIST_TINGLYSNING_BRANCH=false" >> $GITHUB_ENV
@@ -194,12 +194,12 @@ jobs:
           git commit -m "Uploaded tinglysning"
           git push
 
-      - name: Delete Tinglysning branch and rename Tinglysning-temp branch to Tinglysning 
+      - name: rename Tinglysning-temp branch to Tinglysning and delete Tinglysning branch  
         run: |
-          git branch -m tinglysning-temp tinglysning
-
+          git fetch origin tinglysning-temp
+          git switch -c tinglysning-temp --track origin/tinglysning-temp
+          git branch -m tinglysning
           git push -u origin tinglysning --force
-
           git push origin --delete tinglysning-temp
 
       - name: Trigger next Runner
@@ -213,8 +213,8 @@ jobs:
               workflow_id: 'runner.yml',
               ref: 'main',
               inputs: {
-                'should-spawn-new-runner': 'false',
                 'remove-count-from-vins': '${{ env.REMOVE_COUNT_FROM_VINS }}'
+                'github-upload-limit': '${{ inputs.github-upload-limit }}'
               }
             })
           github-token: ${{ secrets.PAT }}
