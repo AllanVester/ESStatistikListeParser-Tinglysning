@@ -200,6 +200,7 @@ jobs:
         run: |
           git fetch origin tinglysning-temp:tinglysning
           git push -u origin tinglysning --force
+          
           git push origin --delete tinglysning-temp
 
       - name: Trigger next Runner
