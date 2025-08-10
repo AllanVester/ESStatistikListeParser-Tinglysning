@@ -195,6 +195,7 @@ jobs:
           git push
 
       - name: Rename Tinglysning-temp branch to Tinglysning and delete Tinglysning branch  
+        working-directory: "${{ github.workspace }}/temp/"
         run: |
           git fetch origin tinglysning-temp:tinglysning
           git push -u origin tinglysning --force
